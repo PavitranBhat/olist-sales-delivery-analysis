@@ -95,3 +95,17 @@ Data Analytics Portfolio Project
 
 ## Disclaimer
 This project is intended for educational and portfolio purposes. Findings reflect the fields and records available in the source dataset and should be interpreted in that context.
+
+## 📊 Excel Analysis & Visualizations
+
+### 1. Order Delivery Performance
+
+![Order Delivery Performance](delivery_performance.png)
+
+### 2. Average Delivery Time by Status
+
+![Average Delivery Time by Status](average_delivery_time.png)
+
+### 3. Order Status vs Delivery Status
+
+![Order Status vs Delivery Status](order_status_analysis.png)
