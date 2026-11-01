@@ -614,3 +614,203 @@ CREATE TABLE olist_payments_staging (
     payment_installments VARCHAR(20),
     payment_value VARCHAR(30)
 );
+
+LOAD DATA LOCAL INFILE
+'C:/Users/smebh/Desktop/olist-ecommerce-sales-analytics/data/olist_order_payments_dataset.csv'
+INTO TABLE olist_payments_staging
+FIELDS TERMINATED BY ','
+ENCLOSED BY '"'
+LINES TERMINATED BY '\n'
+IGNORE 1 ROWS
+(
+    order_id,
+    payment_sequential,
+    payment_type,
+    payment_installments,
+    payment_value
+);
+SELECT COUNT(*) AS total_records
+FROM olist_payments_staging;
+
+SELECT
+    COUNT(*) AS total_records,
+    COUNT(DISTINCT order_id) AS unique_orders
+FROM olist_payments_staging;
+
+SELECT
+    COUNT(*) AS total_records,
+
+    SUM(order_id IS NULL OR TRIM(order_id) = '') AS missing_order_id,
+
+    SUM(payment_sequential IS NULL OR TRIM(payment_sequential) = '') AS missing_sequential,
+
+    SUM(payment_type IS NULL OR TRIM(payment_type) = '') AS missing_payment_type,
+
+    SUM(payment_installments IS NULL OR TRIM(payment_installments) = '') AS missing_installments,
+
+    SUM(payment_value IS NULL OR TRIM(payment_value) = '') AS missing_payment_value
+
+FROM olist_payments_staging;
+
+SELECT
+    payment_type,
+    COUNT(*) AS transaction_count,
+    ROUND(SUM(CAST(payment_value AS DECIMAL(10,2))), 2) AS total_payment,
+    ROUND(AVG(CAST(payment_value AS DECIMAL(10,2))), 2) AS average_payment
+FROM olist_payments_staging
+GROUP BY payment_type
+ORDER BY total_payment DESC;
+CREATE TABLE olist_payments AS
+SELECT
+    order_id,
+    CAST(payment_sequential AS UNSIGNED) AS payment_sequential,
+    payment_type,
+    CAST(payment_installments AS UNSIGNED) AS payment_installments,
+    CAST(payment_value AS DECIMAL(10,2)) AS payment_value
+FROM olist_payments_staging;
+
+SELECT
+    COUNT(*) AS total_records,
+    COUNT(DISTINCT order_id) AS unique_orders,
+    ROUND(SUM(payment_value), 2) AS total_payment_value,
+    ROUND(AVG(payment_value), 2) AS average_payment_value
+FROM olist_payments;
+
+USE olist_analytics;
+
+CREATE TABLE olist_order_items_staging (
+    order_id VARCHAR(100),
+    order_item_id VARCHAR(20),
+    product_id VARCHAR(100),
+    seller_id VARCHAR(100),
+    shipping_limit_date VARCHAR(50),
+    price VARCHAR(30),
+    freight_value VARCHAR(30)
+);
+
+LOAD DATA LOCAL INFILE
+'C:/Users/smebh/Desktop/olist-ecommerce-sales-analytics/data/olist_order_items_dataset.csv'
+INTO TABLE olist_order_items_staging
+FIELDS TERMINATED BY ','
+ENCLOSED BY '"'
+LINES TERMINATED BY '\n'
+IGNORE 1 ROWS
+(
+    order_id,
+    order_item_id,
+    product_id,
+    seller_id,
+    shipping_limit_date,
+    price,
+    freight_value
+);
+
+SELECT COUNT(*) AS total_records
+FROM olist_order_items_staging;
+
+CREATE TABLE olist_order_items AS
+SELECT
+    order_id,
+    CAST(order_item_id AS UNSIGNED) AS order_item_id,
+    product_id,
+    seller_id,
+    STR_TO_DATE(shipping_limit_date, '%Y-%m-%d %H:%i:%s') AS shipping_limit_date,
+    CAST(price AS DECIMAL(10,2)) AS price,
+    CAST(freight_value AS DECIMAL(10,2)) AS freight_value
+FROM olist_order_items_staging;
+
+SELECT
+    COUNT(*) AS total_records,
+    COUNT(DISTINCT order_id) AS unique_orders,
+    COUNT(DISTINCT product_id) AS unique_products,
+    COUNT(DISTINCT seller_id) AS unique_sellers,
+    ROUND(SUM(price), 2) AS total_sales,
+    ROUND(SUM(freight_value), 2) AS total_freight
+FROM olist_order_items;
+
+SELECT
+    product_id,
+    COUNT(*) AS units_sold,
+    ROUND(SUM(price), 2) AS total_sales
+FROM olist_order_items
+GROUP BY product_id
+ORDER BY total_sales DESC
+LIMIT 10;
+
+SELECT
+    COUNT(*) AS total_orders,
+    ROUND(SUM(order_sales), 2) AS total_revenue,
+    ROUND(AVG(order_sales), 2) AS average_order_value
+FROM (
+    SELECT
+        order_id,
+        SUM(price) AS order_sales
+    FROM olist_order_items
+    GROUP BY order_id
+) AS order_summary;
+
+CREATE TABLE olist_products_staging (
+    product_id VARCHAR(100),
+    product_category_name VARCHAR(100),
+    product_name_lenght VARCHAR(20),
+    product_description_lenght VARCHAR(20),
+    product_photos_qty VARCHAR(20),
+    product_weight_g VARCHAR(20),
+    product_length_cm VARCHAR(20),
+    product_height_cm VARCHAR(20),
+    product_width_cm VARCHAR(20)
+);
+
+LOAD DATA LOCAL INFILE
+'C:/Users/smebh/Desktop/olist-ecommerce-sales-analytics/data/olist_products_dataset.csv'
+INTO TABLE olist_products_staging
+FIELDS TERMINATED BY ','
+ENCLOSED BY '"'
+LINES TERMINATED BY '\n'
+IGNORE 1 ROWS
+(
+    product_id,
+    product_category_name,
+    product_name_lenght,
+    product_description_lenght,
+    product_photos_qty,
+    product_weight_g,
+    product_length_cm,
+    product_height_cm,
+    product_width_cm
+);
+
+SELECT COUNT(*) AS total_records
+FROM olist_products_staging;
+
+CREATE TABLE olist_products AS
+SELECT
+    product_id,
+    NULLIF(TRIM(product_category_name), '') AS product_category_name,
+    CAST(NULLIF(product_name_lenght, '') AS UNSIGNED) AS product_name_length,
+    CAST(NULLIF(product_description_lenght, '') AS UNSIGNED) AS product_description_length,
+    CAST(NULLIF(product_photos_qty, '') AS UNSIGNED) AS product_photos_qty,
+    CAST(NULLIF(product_weight_g, '') AS UNSIGNED) AS product_weight_g,
+    CAST(NULLIF(product_length_cm, '') AS UNSIGNED) AS product_length_cm,
+    CAST(NULLIF(product_height_cm, '') AS UNSIGNED) AS product_height_cm,
+    CAST(NULLIF(product_width_cm, '') AS UNSIGNED) AS product_width_cm
+FROM olist_products_staging;
+
+SELECT
+    p.product_category_name,
+    COUNT(DISTINCT oi.order_id) AS total_orders,
+    SUM(oi.order_item_id) AS units_sold,
+    ROUND(SUM(oi.price), 2) AS total_sales
+FROM olist_products p
+JOIN olist_order_items oi
+    ON p.product_id = oi.product_id
+WHERE p.product_category_name IS NOT NULL
+GROUP BY p.product_category_name
+ORDER BY total_sales DESC
+LIMIT 10;
+
+SELECT
+    COUNT(*) AS total_products,
+    SUM(product_category_name IS NULL) AS missing_categories,
+    COUNT(DISTINCT product_category_name) AS total_categories
+FROM olist_products;
